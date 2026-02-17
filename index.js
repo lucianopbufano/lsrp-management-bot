@@ -9,6 +9,8 @@ const {
   ButtonBuilder,
   ButtonStyle,
   AttachmentBuilder
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder
 } = require("discord.js");
 
 const client = new Client({
@@ -24,6 +26,8 @@ const COMMANDS = [
   { name: "server_shutdown", description: "Announce ERLC server shutdown" },
   { name: "server_startup", description: "Announce ERLC server startup" },
   { name: "ssu_vote", description: "Start an SSU vote" }
+  { name: "post_information", description: "Post or update the information panel" }
+
 ];
 
 // ===== READY =====
@@ -117,7 +121,68 @@ client.on("interactionCreate", async interaction => {
 
       return interaction.editReply({ content: "SSU message sent." });
     }
+if (interaction.commandName === "post_information") {
+  const channel = await client.channels.fetch(process.env.INFORMATION_CHANNEL_ID);
 
+  const embed = new EmbedBuilder()
+    .setTitle("ℹ️ Liberty State Roleplay — Information Hub")
+    .setDescription(
+      "Use the menu below to quickly access important server resources.\n\n" +
+      "Please review all applicable rules and information before participating."
+    )
+    .setColor(0x1E3A8A)
+    .setThumbnail("attachment://logo.png")
+    .setFooter({
+      text: "LSRP Management • Information Panel",
+      iconURL: "attachment://logo.png"
+    });
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("info_select")
+    .setPlaceholder("Select a category to view")
+    .addOptions(
+      {
+        label: "Discord Rules",
+        description: "Community rules and Discord moderation policies",
+        value: "discord_rules",
+        emoji: "📜"
+      },
+      {
+        label: "In-Game Rules",
+        description: "ERLC gameplay rules and RP standards",
+        value: "ingame_rules",
+        emoji: "🚓"
+      },
+      {
+        label: "LEO Radio Codes",
+        description: "Official law enforcement radio codes",
+        value: "leo_codes",
+        emoji: "📻"
+      },
+      {
+        label: "Support & Tickets",
+        description: "Open a ticket or contact staff",
+        value: "support",
+        emoji: "🎫"
+      },
+      {
+        label: "Sessions & Startups",
+        description: "SSU votes, join codes, and server status",
+        value: "sessions",
+        emoji: "📅"
+      }
+    );
+
+  const row = new ActionRowBuilder().addComponents(menu);
+
+  await sendOrEdit(channel, {
+    embeds: [embed],
+    components: [row],
+    files: [logo]
+  });
+
+  return interaction.reply({ content: "Information panel posted.", ephemeral: true });
+}
     // 🟡 SSU VOTE
     if (interaction.commandName === "ssu_vote") {
       let yesVotes = new Set();
@@ -197,6 +262,30 @@ client.on("interactionCreate", async interaction => {
     });
   }
 });
+if (interaction.isStringSelectMenu() && interaction.customId === "info_select") {
+  const selection = interaction.values[0];
+
+  const map = {
+    discord_rules: process.env.DISCORD_RULES_CHANNEL_ID,
+    ingame_rules: process.env.INGAME_RULES_CHANNEL_ID,
+    leo_codes: process.env.LEO_CODES_CHANNEL_ID,
+    support: process.env.SUPPORT_CHANNEL_ID,
+    sessions: process.env.SESSIONS_CHANNEL_ID
+  };
+
+  const descriptions = {
+    discord_rules: "📜 **Discord Rules**\nCommunity conduct and Discord moderation policies.",
+    ingame_rules: "🚓 **In-Game Rules**\nERLC gameplay rules and RP standards.",
+    leo_codes: "📻 **LEO Radio Codes**\nLaw enforcement communication codes.",
+    support: "🎫 **Support & Tickets**\nOpen a ticket or contact staff.",
+    sessions: "📅 **Sessions & Startups**\nSSU votes, join codes, and server status."
+  };
+
+  await interaction.reply({
+    content: `${descriptions[selection]}\n\n➡️ <#${map[selection]}>`,
+    ephemeral: true
+  });
+}
 
 // ===== LOGIN =====
 client.login(process.env.TOKEN);
